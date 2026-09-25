@@ -1,0 +1,14 @@
+{
+  "aurora": {
+    "nombre": "Programa Aurora",
+    "ingreso_minimo": 4000000,
+    "ahorro_minimo": 20000000,
+    "ciudades": ["Bogotá", "Medellín", "Cali"]
+  },
+  "bahia": {
+    "nombre": "Programa Bahía",
+    "ingreso_minimo": 6500000,
+    "ahorro_minimo": 35000000,
+    "ciudades": ["Barranquilla", "Cartagena", "Santa Marta"]
+  }
+}
