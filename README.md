@@ -19,7 +19,17 @@ docker compose up -d          # Postgres en localhost:5432
 Al arrancar, Flyway crea el esquema y el proceso automático corre a los 10 segundos y
 luego cada 2 minutos: lee `data/fuente-a.csv`, evalúa lo pendiente y registra las notificaciones.
 
-**Enviar un webhook** (cada elemento de `data/webhooks.json` es el cuerpo de un POST):
+**Pantalla del equipo comercial:** http://localhost:8080 (redirige a `/ui/aplicaciones`).
+
+**Enviar los webhooks de ejemplo** (cada elemento de `data/webhooks.json` es el cuerpo de un POST;
+el tercero es un reintento del segundo):
+
+```bash
+.\scripts\enviar-webhooks.ps1     # Windows (PowerShell)
+scripts/enviar-webhooks.sh        # Linux / macOS (usa python3)
+```
+
+O uno a mano:
 
 ```bash
 curl -X POST localhost:8080/aplicaciones -H "Content-Type: application/json" -d '{
@@ -52,7 +62,13 @@ docker exec crm-toperty-db psql -U crm_user -d crm_toperty -c "CREATE DATABASE c
 |---|---|---|
 | `POST` | `/aplicaciones` | Webhook. `202` si es nueva; `200` con la misma aplicación si es un reintento; `400` sin `submission_id` |
 | `POST` | `/procesos/ejecutar` | Dispara una corrida; `409` si ya hay una en curso |
-| `GET` | `/ui/aplicaciones` | Pantalla del equipo comercial _(en construcción)_ |
+| `GET` | `/ui/aplicaciones` | Pantalla: lista con pestañas por resultado (con contadores), filtro por programa y paginación |
+| `GET` | `/ui/aplicaciones/{id}` | Pantalla: detalle con cada regla (valor frente a umbral), advertencias, notificación, otras aplicaciones de la persona, reglas aplicadas y registro original |
+
+La pantalla se renderiza en el servidor con Thymeleaf, dentro de la misma aplicación: un solo
+proyecto y un solo comando para levantarlo. Los filtros son parámetros de la URL, así que se
+pueden compartir y el botón "atrás" funciona. El CSS es propio, sin CDN (funciona sin internet),
+con modo claro y oscuro y diseño adaptable a celular.
 
 ## Cómo está armado
 
@@ -167,6 +183,8 @@ pero dejaría de ser el camino normal.
   reciba después su notificación de `DECISION`.
 - **Seguridad.** No hay autenticación en la pantalla ni en `/procesos/ejecutar`, y el webhook no
   valida firma (lo normal sería HMAC con un secreto compartido).
+- **Búsqueda en la pantalla.** Se filtra por programa y resultado, como pide el enunciado; no hay
+  búsqueda por nombre o email ni orden por columna.
 - **Reglas nuevas.** Los umbrales, ciudades y programas se configuran sin código; un tipo de regla
   nuevo (por ejemplo, edad máxima) sí requiere código en `MotorReglas`.
 - **Alias de ciudades.** `Bogotá D.C.` no coincidiría con `Bogotá`. Se resolvería con un mapa de

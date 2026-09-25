@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragmentos :: cabeza(${a.persona.nombre})}"></head>
+<body>
+<header th:replace="~{fragmentos :: barra}"></header>
+
+<main class="page">
+    <a class="back" th:href="@{/ui/aplicaciones}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+        Aplicaciones
+    </a>
+
+    <div class="detail-head">
+        <div>
+            <h1 th:text="${a.persona.nombre}">Nombre</h1>
+            <div class="detail-head__meta">
+                <span class="badge badge--lg" th:classappend="'badge--' + ${a.resultado.clase}" th:text="${a.resultado.singular}">Aprobada</span>
+                <span class="tag tag--accent" th:text="${a.programaNombre}">Programa</span>
+                <span class="tag" th:text="${a.fuente.name() == 'CSV'} ? 'CSV' : 'Webhook'">CSV</span>
+                <span th:text="|Aplicación #${a.id} · recibida ${@fmt.fechaHora(a.recibidaEn)}|">Aplicación</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="stack">
+
+            <!-- Evaluación: el veredicto y cada regla con su valor y su umbral -->
+            <section class="card">
+                <div class="card__head"><h2>Evaluación</h2>
+                    <span class="muted" th:if="${a.evaluadaEn != null}" th:text="${@fmt.fechaHora(a.evaluadaEn)}">fecha</span>
+                </div>
+                <div class="card__body">
+                    <div class="verdict">
+                        <span class="verdict__icon" th:classappend="'verdict__icon--' + ${a.resultado.clase}" aria-hidden="true">
+                            <svg th:if="${a.resultado.name() == 'APROBADA'}" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                            <svg th:if="${a.resultado.name() == 'RECHAZADA'}" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                            <svg th:if="${a.resultado.name() == 'INCOMPLETA'}" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                            <svg th:if="${a.resultado.name() == 'PENDIENTE'}" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                        </span>
+                        <div th:switch="${a.resultado.name()}">
+                            <th:block th:case="'APROBADA'">
+                                <strong th:text="|Cumple las ${#lists.size(a.motivos)} reglas|">Cumple</strong>
+                                <span th:text="|Ingreso, ahorro y ciudad dentro de ${a.programaNombre}.|">detalle</span>
+                            </th:block>
+                            <th:block th:case="'RECHAZADA'">
+                                <strong th:text="|No cumple ${#lists.size(a.motivos) - a.reglasCumplidas()} de ${#lists.size(a.motivos)} reglas|">No cumple</strong>
+                                <span>Se aprueba solo si cumple las tres.</span>
+                            </th:block>
+                            <th:block th:case="'INCOMPLETA'">
+                                <strong>Faltan datos para evaluar</strong>
+                                <span>No es un rechazo: se notificó a la persona para completar la solicitud.</span>
+                            </th:block>
+                            <th:block th:case="*">
+                                <strong>Pendiente de evaluación</strong>
+                                <span>El proceso automático la evaluará en su próxima corrida.</span>
+                            </th:block>
+                        </div>
+                    </div>
+
+                    <ul class="rules" th:if="${a.motivos != null and !#lists.isEmpty(a.motivos)}">
+                        <li th:each="r : ${a.motivos}" class="rule" th:classappend="${r.cumple} ? 'rule--ok' : 'rule--no'">
+                            <span class="rule__icon" aria-hidden="true">
+                                <svg th:if="${r.cumple}" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                                <svg th:unless="${r.cumple}" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                            </span>
+                            <span>
+                                <span class="rule__name" th:text="${@fmt.regla(r.regla)}">Regla</span><br>
+                                <span class="rule__expected" th:text="${@fmt.esperadoRegla(r.esperado)}">Requiere</span>
+                            </span>
+                            <span class="rule__value" th:text="${@fmt.valorRegla(r.regla, r.valor)}">valor</span>
+                        </li>
+                    </ul>
+                </div>
+            </section>
+
+            <div class="callout" th:unless="${#lists.isEmpty(a.advertencias)}">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                <div>
+                    <strong>Revisar con la persona</strong>
+                    <ul><li th:each="adv : ${a.advertencias}" th:text="${adv}">advertencia</li></ul>
+                </div>
+            </div>
+
+            <!-- Lo que se registró en la tabla notificaciones para esta aplicación -->
+            <section class="card">
+                <div class="card__head"><h2>Notificaciones</h2>
+                    <span class="muted" th:text="${#lists.size(a.notificaciones)}">0</span>
+                </div>
+                <div class="card__body">
+                    <div th:each="n : ${a.notificaciones}" class="notice">
+                        <div class="notice__head">
+                            <div class="notice__subject" th:text="${n.asunto}">Asunto</div>
+                            <div class="notice__meta">
+                                <span class="tag" th:text="${n.tipo == 'DECISION'} ? 'Decisión' : 'Incompleta'">Decisión</span>
+                                <span th:if="${n.destinatario != null}" th:text="'Para ' + ${n.destinatario}">Para</span>
+                                <span th:if="${n.destinatario == null}" style="color: var(--warn); font-weight: 600">Sin destinatario: contactar por otro medio</span>
+                                <span th:text="${@fmt.fechaHora(n.creadaEn)}">fecha</span>
+                            </div>
+                        </div>
+                        <pre class="notice__body" th:text="${n.cuerpo}">Cuerpo</pre>
+                    </div>
+                    <div th:if="${#lists.isEmpty(a.notificaciones)}" class="muted">
+                        Todavía no hay notificaciones. Se registran cuando el proceso evalúa la aplicación.
+                    </div>
+                </div>
+            </section>
+
+            <details class="card raw">
+                <summary><span>Registro original <span class="muted" style="font-weight: 400">· tal como llegó</span></span></summary>
+                <pre th:text="${a.payload}">{}</pre>
+            </details>
+        </div>
+
+        <aside class="stack">
+            <section class="card">
+                <div class="card__head"><h2>Persona</h2></div>
+                <div class="card__body">
+                    <div class="person-card">
+                        <span class="avatar" th:text="${a.persona.iniciales()}">JC</span>
+                        <div>
+                            <strong th:text="${a.persona.nombre}">Nombre</strong>
+                            <span class="muted" th:text="${a.persona.email} ?: 'Sin email'">correo</span>
+                        </div>
+                    </div>
+                    <dl class="props">
+                        <dt>Email</dt>
+                        <dd th:text="${a.persona.email} ?: '—'">correo</dd>
+                        <dt>Celular</dt>
+                        <dd th:text="${@fmt.celular(a.persona.celular)}">celular</dd>
+                    </dl>
+
+                    <div th:unless="${#lists.isEmpty(a.otras)}">
+                        <div class="section-label" th:text="|Otras aplicaciones (${#lists.size(a.otras)})|">Otras aplicaciones</div>
+                        <ul class="others">
+                            <li th:each="o : ${a.otras}">
+                                <a th:href="@{/ui/aplicaciones/{id}(id=${o.id})}">
+                                    <span>
+                                        <span class="others__name" th:text="${o.programa}">Programa</span><br>
+                                        <span class="muted" th:text="|${o.fuente.name() == 'CSV' ? 'CSV' : 'Webhook'} · ${@fmt.fecha(o.fechaSolicitud)}|">fuente</span>
+                                    </span>
+                                    <span class="badge" th:classappend="'badge--' + ${o.resultado.clase}" th:text="${o.resultado.singular}">Aprobada</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section class="card">
+                <div class="card__head"><h2>Solicitud</h2></div>
+                <div class="card__body">
+                    <dl class="props">
+                        <dt>Programa</dt>
+                        <dd th:text="${a.programaNombre}">Programa</dd>
+                        <dt>Ciudad</dt>
+                        <dd th:text="${a.ciudad} ?: '—'">Ciudad</dd>
+                        <dt>Ingreso mensual</dt>
+                        <dd class="num" th:text="${@fmt.pesos(a.ingreso)}">$ 0</dd>
+                        <dt>Ahorro</dt>
+                        <dd class="num" th:text="${@fmt.pesos(a.ahorro)}">$ 0</dd>
+                        <dt>Fecha de solicitud</dt>
+                        <dd th:text="${@fmt.fecha(a.fechaSolicitud)}">fecha</dd>
+                        <dt>Fuente</dt>
+                        <dd th:text="${a.fuente.name() == 'CSV'} ? 'Archivo CSV' : 'Webhook'">CSV</dd>
+                        <dt>Id de origen</dt>
+                        <dd class="mono" th:title="${a.idExterno}"
+                            th:text="${#strings.length(a.idExterno) > 16} ? ${#strings.substring(a.idExterno, 0, 12)} + '…' : ${a.idExterno}">id</dd>
+                        <dt>Recibida</dt>
+                        <dd th:text="${@fmt.fechaHora(a.recibidaEn)}">fecha</dd>
+                        <dt>Evaluada</dt>
+                        <dd th:text="${@fmt.fechaHora(a.evaluadaEn)}">fecha</dd>
+                    </dl>
+                </div>
+            </section>
+
+            <!-- Copia de programas.json guardada al evaluar: explica la decisión aunque el archivo cambie -->
+            <section class="card" th:if="${a.umbrales != null}">
+                <div class="card__head"><h2>Reglas aplicadas</h2></div>
+                <div class="card__body">
+                    <dl class="props">
+                        <dt>Ingreso mínimo</dt>
+                        <dd class="num" th:text="${@fmt.pesos(a.umbrales['ingreso_minimo'])}">$ 0</dd>
+                        <dt>Ahorro mínimo</dt>
+                        <dd class="num" th:text="${@fmt.pesos(a.umbrales['ahorro_minimo'])}">$ 0</dd>
+                        <dt>Ciudades</dt>
+                        <dd th:text="${@fmt.lista(a.umbrales['ciudades'])}">ciudades</dd>
+                    </dl>
+                    <p class="muted" style="margin: 14px 0 0; font-size: 12.5px">
+                        Copia de programas.json al momento de evaluar: si el archivo cambia, esta decisión no cambia.
+                    </p>
+                </div>
+            </section>
+        </aside>
+    </div>
+</main>
+</body>
+</html>

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragmentos :: cabeza('Aplicaciones')}"></head>
+<body>
+<header th:replace="~{fragmentos :: barra}"></header>
+
+<main class="page">
+    <div class="page-head">
+        <div>
+            <h1>Aplicaciones</h1>
+            <p>Solicitudes recibidas por CSV y webhook, evaluadas automáticamente con las reglas de cada programa.</p>
+        </div>
+    </div>
+
+    <!-- Pestañas por resultado: cada una es un enlace que conserva el programa elegido -->
+    <nav class="stats" aria-label="Filtrar por resultado">
+        <a class="stat" th:classappend="${filtros.resultado == null} ? 'stat--active'" th:href="${filtros.conResultado(null)}">
+            <span class="stat__label"><span class="stat__dot"></span>Todas</span>
+            <span class="stat__value" th:text="${#aggregates.sum(conteos.![total])}">0</span>
+        </a>
+        <a th:each="c : ${conteos}" class="stat"
+           th:classappend="${filtros.resultado == c.resultado} ? 'stat--active'"
+           th:href="${filtros.conResultado(c.resultado)}">
+            <span class="stat__label">
+                <span class="stat__dot" th:classappend="'stat__dot--' + ${c.resultado.clase}"></span>
+                <span th:text="${c.resultado.plural}">Aprobadas</span>
+            </span>
+            <span class="stat__value" th:text="${c.total}">0</span>
+        </a>
+    </nav>
+
+    <section class="card">
+        <div class="toolbar">
+            <form method="get" th:action="@{/ui/aplicaciones}">
+                <label class="field-label" for="programa">Programa</label>
+                <select class="select" id="programa" name="programa" onchange="this.form.submit()">
+                    <option value="">Todos los programas</option>
+                    <option th:each="p : ${programas}" th:value="${p.codigo}" th:text="${p.nombre}"
+                            th:selected="${p.codigo == filtros.programa}">Programa</option>
+                </select>
+                <input type="hidden" name="resultado" th:if="${filtros.resultado != null}" th:value="${filtros.resultado}">
+                <noscript><button class="button" type="submit">Filtrar</button></noscript>
+            </form>
+            <div class="muted">
+                <span th:text="${pagina.totalElements} + (${pagina.totalElements == 1} ? ' aplicación' : ' aplicaciones')">0 aplicaciones</span>
+                <a class="chip-reset" th:if="${filtros.programa != null or filtros.resultado != null}"
+                   th:href="@{/ui/aplicaciones}">&nbsp;· Quitar filtros</a>
+            </div>
+        </div>
+
+        <div class="table-wrap" th:unless="${pagina.empty}">
+            <table class="table">
+                <thead>
+                <tr>
+                    <th>Persona</th>
+                    <th>Programa</th>
+                    <th class="hide-sm">Ciudad</th>
+                    <th class="num">Ingreso mensual</th>
+                    <th class="num">Ahorro</th>
+                    <th class="hide-sm">Solicitud</th>
+                    <th class="hide-sm">Fuente</th>
+                    <th>Resultado</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="f : ${pagina.content}">
+                    <td>
+                        <a class="row-link" th:href="@{/ui/aplicaciones/{id}(id=${f.id})}" th:text="${f.nombre}">Nombre</a>
+                        <span class="person__email" th:text="${f.email} ?: 'Sin email'">correo</span>
+                    </td>
+                    <td th:text="${f.programa}">Programa</td>
+                    <td class="hide-sm" th:text="${f.ciudad} ?: '—'">Ciudad</td>
+                    <td class="num" th:text="${@fmt.pesos(f.ingreso)}">$ 0</td>
+                    <td class="num" th:text="${@fmt.pesos(f.ahorro)}">$ 0</td>
+                    <td class="hide-sm muted" th:text="${@fmt.fecha(f.fechaSolicitud)}">fecha</td>
+                    <td class="hide-sm"><span class="tag" th:text="${f.fuente.name() == 'CSV'} ? 'CSV' : 'Webhook'">CSV</span></td>
+                    <td><div class="cell-result">
+                        <span class="badge" th:classappend="'badge--' + ${f.resultado.clase}" th:text="${f.resultado.singular}">Aprobada</span>
+                        <span class="warn-icon" th:unless="${#lists.isEmpty(f.advertencias)}"
+                              th:title="${#strings.listJoin(f.advertencias, ' · ')}">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                            <span th:text="${#lists.size(f.advertencias)}">1</span>
+                        </span>
+                    </div></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="empty" th:if="${pagina.empty}">
+            <div class="empty__icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1z"/></svg>
+            </div>
+            <strong>No hay aplicaciones con estos filtros</strong>
+            <span th:if="${filtros.programa != null or filtros.resultado != null}">Prueba con otro programa o resultado.</span>
+            <span th:unless="${filtros.programa != null or filtros.resultado != null}">Aparecerán aquí cuando llegue la primera por CSV o webhook.</span>
+        </div>
+
+        <div class="pager" th:if="${pagina.totalPages > 1}">
+            <span th:text="|Mostrando ${pagina.number * pagina.size + 1}–${pagina.number * pagina.size + pagina.numberOfElements} de ${pagina.totalElements}|">Mostrando</span>
+            <span class="pager__links">
+                <a class="button" th:href="${filtros.conPagina(pagina.number - 1)}"
+                   th:attr="aria-disabled=${!pagina.hasPrevious()}">← Anterior</a>
+                <a class="button" th:href="${filtros.conPagina(pagina.number + 1)}"
+                   th:attr="aria-disabled=${!pagina.hasNext()}">Siguiente →</a>
+            </span>
+        </div>
+    </section>
+</main>
+</body>
+</html>

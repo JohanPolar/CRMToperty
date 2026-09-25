@@ -10,6 +10,7 @@ import com.johan.crmtoperty.evaluacion.MotorReglas.Veredicto;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -27,6 +28,15 @@ public class Notificador {
             VALUES (:aplicacion, :persona, :tipo, :destinatario, :asunto, :cuerpo, :estado)
             ON CONFLICT (aplicacion_id, tipo) DO NOTHING
             """;
+
+    // Cómo se nombra cada regla en el mensaje a la persona
+    private static final Map<String, String> EN_PALABRAS = Map.of(
+            "ingreso_minimo", "ingreso mínimo",
+            "ahorro_minimo", "ahorro mínimo",
+            "ciudad", "ciudad donde opera el programa",
+            "programa", "programa válido",
+            "ingreso_mensual", "ingreso mensual",
+            "ahorro", "ahorro");
 
     private final JdbcClient jdbc;
 
@@ -79,7 +89,7 @@ public class Notificador {
         return veredicto.motivos().stream()
                 .filter(regla -> !regla.cumple())
                 .map(ResultadoRegla::regla)
-                .map(nombre -> nombre.replace('_', ' '))
+                .map(nombre -> EN_PALABRAS.getOrDefault(nombre, nombre.replace('_', ' ')))
                 .collect(Collectors.joining(", "));
     }
 }
