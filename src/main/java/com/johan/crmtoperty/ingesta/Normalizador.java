@@ -22,10 +22,18 @@ import java.util.regex.Pattern;
 @Component
 public class Normalizador {
 
-    // $6.400.000 o 6.400.000: puntos como separador de miles (formato colombiano)
-    private static final Pattern MONTO_CON_MILES = Pattern.compile("\\d{1,3}(\\.\\d{3})+");
-    // 8200000 o 9400000.5 (lo que produce un número JSON)
-    private static final Pattern MONTO_SIMPLE = Pattern.compile("\\d+(\\.\\d{1,2})?");
+    // Un separador seguido de exactamente 3 dígitos es de miles; seguido de 1 o 2, es decimal.
+    // Por eso "6.400" es seis mil cuatrocientos y "6,40" es seis con cuarenta.
+    // 6.400.000 o 6.400.000,50 (formato colombiano: punto de miles, coma decimal)
+    private static final Pattern MILES_CON_PUNTO = Pattern.compile("\\d{1,3}(\\.\\d{3})+(,\\d{1,2})?");
+    // 1,200,000 o 1,200,000.50 (formato anglosajón: coma de miles, punto decimal)
+    private static final Pattern MILES_CON_COMA = Pattern.compile("\\d{1,3}(,\\d{3})+(\\.\\d{1,2})?");
+    // 8200000, 9400000.5 o 9400000,5
+    private static final Pattern MONTO_SIMPLE = Pattern.compile("\\d+([.,]\\d{1,2})?");
+    // 1.2M, 1,2 MM, 2 millones: el número antes del sufijo puede tener cualquier decimal
+    private static final Pattern EN_MILLONES =
+            Pattern.compile("(\\d+(?:[.,]\\d+)?)\\s*(?:m|mm|mill|millon|millón|millones)\\.?", Pattern.CASE_INSENSITIVE);
+    private static final BigDecimal UN_MILLON = BigDecimal.valueOf(1_000_000);
     private static final Pattern NO_DIGITOS = Pattern.compile("\\D");
     private static final Pattern MARCAS_DIACRITICAS = Pattern.compile("\\p{M}");
     private static final Pattern ESPACIOS = Pattern.compile("\\s+");
@@ -90,13 +98,31 @@ public class Normalizador {
             return Resultado.vacio();
         }
         String sinSimbolo = limpio.startsWith("$") ? limpio.substring(1).strip() : limpio;
-        if (MONTO_CON_MILES.matcher(sinSimbolo).matches()) {
-            return Resultado.de(new BigDecimal(sinSimbolo.replace(".", "")));
+
+        var enMillones = EN_MILLONES.matcher(sinSimbolo);
+        if (enMillones.matches()) {
+            BigDecimal monto = new BigDecimal(enMillones.group(1).replace(',', '.')).multiply(UN_MILLON);
+            // Es una abreviatura, no un monto exacto: se deja constancia de cómo se leyó
+            return Resultado.conAdvertencia(monto,
+                    campo + " abreviado: '" + limpio + "' se leyó como " + monto.toPlainString());
         }
-        if (MONTO_SIMPLE.matcher(sinSimbolo).matches()) {
-            return Resultado.de(new BigDecimal(sinSimbolo));
+
+        BigDecimal monto = numeroConSeparadores(sinSimbolo);
+        return monto != null ? Resultado.de(monto) : Resultado.invalido(campo + " ilegible: '" + limpio + "'");
+    }
+
+    /** Convierte a BigDecimal cualquiera de los tres formatos de monto aceptados, o null si no es ninguno. */
+    private static BigDecimal numeroConSeparadores(String valor) {
+        if (MILES_CON_PUNTO.matcher(valor).matches()) {
+            return new BigDecimal(valor.replace(".", "").replace(',', '.'));
         }
-        return Resultado.invalido(campo + " ilegible: '" + limpio + "'");
+        if (MILES_CON_COMA.matcher(valor).matches()) {
+            return new BigDecimal(valor.replace(",", ""));
+        }
+        if (MONTO_SIMPLE.matcher(valor).matches()) {
+            return new BigDecimal(valor.replace(',', '.'));
+        }
+        return null;
     }
 
     /**

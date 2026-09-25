@@ -44,11 +44,32 @@ class NormalizadorTest {
             "'$24.500.000', 24500000",
             "0,             0",
             "9400000.5,     9400000.5",
+            "'9400000,5',   9400000.5",
+            "'1,200,000',   1200000",
+            "'$1,200,000.50', 1200000.50",
+            "'1.200.000,50', 1200000.50",
+            "'6.400',       6400",
+            "'6,40',        6.40",
     })
     void montosValidos(String crudo, BigDecimal esperado) {
         var resultado = normalizador.monto("ahorro", crudo);
         assertThat(resultado.valor()).isEqualByComparingTo(esperado);
         assertThat(resultado.advertencia()).isNull();
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "1.2M,          1200000",
+            "'1,2M',        1200000",
+            "'$1.2 MM',     1200000",
+            "2 millones,    2000000",
+            "'1 millón',    1000000",
+            "3.25 mill,     3250000",
+    })
+    void montosEnMillonesSeConviertenYSeAdvierten(String crudo, BigDecimal esperado) {
+        var resultado = normalizador.monto("ahorro", crudo);
+        assertThat(resultado.valor()).isEqualByComparingTo(esperado);
+        assertThat(resultado.advertencia()).contains("abreviado");
     }
 
     @Test
@@ -59,7 +80,7 @@ class NormalizadorTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"abc", "'1,200,000'", "-500", "1.2M"})
+    @CsvSource({"abc", "-500", "'1,20,000'", "'1.200,000'", "1.2K", "'M'"})
     void montoIlegibleNoSeAdivina(String crudo) {
         var resultado = normalizador.monto("ahorro", crudo);
         assertThat(resultado.valor()).isNull();
