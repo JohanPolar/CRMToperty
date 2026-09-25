@@ -94,6 +94,18 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <systemPropertyVariables>
+                        <!-- Las pruebas disparan el proceso a mano; el reloj no debe correr en paralelo -->
+                        <app.proceso.habilitado>false</app.proceso.habilitado>
+                        <!-- Base propia: las pruebas verifican conteos exactos -->
+                        <DB_URL>jdbc:postgresql://localhost:5432/crm_toperty_test</DB_URL>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 
